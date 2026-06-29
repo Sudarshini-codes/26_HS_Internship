@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Compact Anomaly Check</title>
+    <style>
+      body {
+        margin: 0;
+        background: #111827;
+        color: #f9fafb;
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+
+      main {
+        width: min(760px, calc(100vw - 32px));
+        margin: 36px auto;
+      }
+
+      header {
+        margin-bottom: 20px;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        font-weight: 700;
+      }
+
+      p {
+        margin-top: 8px;
+        color: #9ca3af;
+      }
+
+      .panel {
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        border-bottom: 1px solid #374151;
+      }
+
+      .row:last-child {
+        border-bottom: 0;
+      }
+
+      label {
+        padding: 14px 16px;
+        color: #d1d5db;
+        background: #172033;
+        font-size: 14px;
+      }
+
+      input {
+        width: 100%;
+        border: 0;
+        background: #1f2937;
+        color: #f9fafb;
+        padding: 14px 16px;
+        font-size: 15px;
+        outline: none;
+      }
+
+      input:focus {
+        background: #263244;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: #38bdf8;
+        color: #082f49;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 700;
+        min-height: 42px;
+        padding: 0 18px;
+      }
+
+      button:hover {
+        background: #7dd3fc;
+      }
+
+      .hint {
+        color: #9ca3af;
+        font-size: 14px;
+      }
+
+      .result {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .tile {
+        background: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .tile span {
+        display: block;
+        color: #9ca3af;
+        font-size: 12px;
+      }
+
+      .tile strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 18px;
+      }
+
+      pre {
+        margin: 18px 0 0;
+        background: #030712;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        color: #d1d5db;
+        min-height: 160px;
+        overflow: auto;
+        padding: 16px;
+      }
+
+      @media (max-width: 640px) {
+        .row,
+        .result {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Compact Anomaly Check</h1>
+        <p>A darker, denser version of the single-reading predictor.</p>
+      </header>
+
+      <form id="reading-form">
+        <div class="panel">
+          <div class="row">
+            <label for="api-url">API URL</label>
+            <input id="api-url" type="url" value="http://127.0.0.1:8000/predict" />
+          </div>
+          <div class="row">
+            <label for="timestamp">Timestamp</label>
+            <input id="timestamp" type="datetime-local" value="2025-07-30T09:20" />
+          </div>
+          <div class="row">
+            <label for="temperature_c">Temperature C</label>
+            <input id="temperature_c" type="number" step="0.001" value="24.3" />
+          </div>
+          <div class="row">
+            <label for="vibration_mm_s">Vibration mm/s</label>
+            <input id="vibration_mm_s" type="number" step="0.001" value="2.41" />
+          </div>
+          <div class="row">
+            <label for="pressure_kpa">Pressure kPa</label>
+            <input id="pressure_kpa" type="number" step="0.001" value="101.28" />
+          </div>
+          <div class="row">
+            <label for="current_a">Current A</label>
+            <input id="current_a" type="number" step="0.001" value="5.92" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Run Prediction</button>
+          <div class="hint" id="status">Ready</div>
+        </div>
+      </form>
+
+      <section class="result">
+        <div class="tile">
+          <span>Anomaly</span>
+          <strong id="is-anomaly">-</strong>
+        </div>
+        <div class="tile">
+          <span>Fault type</span>
+          <strong id="fault-type">-</strong>
+        </div>
+        <div class="tile">
+          <span>Reason</span>
+          <strong id="reason">-</strong>
+        </div>
+      </section>
+
+      <pre id="response-output">Submit a reading to see the API response.</pre>
+    </main>
+
+    <script>
+      const form = document.getElementById("reading-form");
+      const statusText = document.getElementById("status");
+      const responseOutput = document.getElementById("response-output");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const reading = {
+          timestamp: document.getElementById("timestamp").value,
+          temperature_c: Number(document.getElementById("temperature_c").value),
+          vibration_mm_s: Number(document.getElementById("vibration_mm_s").value),
+          pressure_kpa: Number(document.getElementById("pressure_kpa").value),
+          current_a: Number(document.getElementById("current_a").value),
+        };
+
+        statusText.textContent = "Calling API...";
+
+        try {
+          const response = await fetch(document.getElementById("api-url").value, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reading),
+          });
+
+          const body = await response.json();
+          document.getElementById("is-anomaly").textContent = String(body.is_anomaly);
+          document.getElementById("fault-type").textContent = body.fault_type || "-";
+          document.getElementById("reason").textContent = body.reason || "-";
+          responseOutput.textContent = JSON.stringify(body, null, 2);
+          statusText.textContent = response.ok ? "Complete" : `HTTP ${response.status}`;
+        } catch (error) {
+          statusText.textContent = "Request failed";
+          responseOutput.textContent = error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

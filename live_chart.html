@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live Prediction Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        margin: 0;
+        background: #f7f8fa;
+        color: #182230;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 28px auto;
+      }
+
+      header {
+        margin-bottom: 18px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+
+      p {
+        margin-top: 8px;
+        color: #667085;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .panel {
+        background: white;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: #344054;
+        font-size: 14px;
+      }
+
+      input {
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        min-height: 38px;
+        padding: 8px 10px;
+        font-size: 15px;
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+        min-height: 40px;
+        padding: 0 14px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .primary {
+        background: #0f766e;
+        color: white;
+      }
+
+      .secondary {
+        background: #e2e8f0;
+        color: #182230;
+      }
+
+      .chart-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .chart-wrap {
+        height: 190px;
+      }
+
+      .status {
+        margin-top: 12px;
+        color: #667085;
+        font-size: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #eaecf0;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background: #f2f4f7;
+        color: #344054;
+      }
+
+      .normal {
+        color: #047857;
+        font-weight: 700;
+      }
+
+      .anomaly {
+        color: #b42318;
+        font-weight: 700;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Live Prediction Chart</h1>
+        <p>Each form submission is saved to a list and added as a new chart point.</p>
+      </header>
+
+      <div class="layout">
+        <section class="panel">
+          <h2>New Reading</h2>
+          <form id="reading-form">
+            <label>
+              Timestamp
+              <input id="timestamp" type="datetime-local" value="2025-07-30T09:20" />
+            </label>
+
+            <label>
+              Temperature (C)
+              <input id="temperature_c" type="number" step="0.001" value="24.3" />
+            </label>
+
+            <label>
+              Vibration (mm/s)
+              <input id="vibration_mm_s" type="number" step="0.001" value="2.41" />
+            </label>
+
+            <label>
+              Pressure (kPa)
+              <input id="pressure_kpa" type="number" step="0.001" value="101.28" />
+            </label>
+
+            <label>
+              Current (A)
+              <input id="current_a" type="number" step="0.001" value="5.92" />
+            </label>
+
+            <div class="button-row">
+              <button class="primary" type="submit">Submit Reading</button>
+              <button class="secondary" id="clear-button" type="button">Clear</button>
+            </div>
+          </form>
+          <div class="status" id="status">No readings submitted yet.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Sensor Charts</h2>
+          <div class="chart-grid">
+            <div class="chart-wrap">
+              <canvas id="temperature-chart"></canvas>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="vibration-chart"></canvas>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="pressure-chart"></canvas>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="current-chart"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel" style="margin-top: 18px">
+        <h2>Submitted Readings</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Timestamp</th>
+              <th>Temperature</th>
+              <th>Vibration</th>
+              <th>Pressure</th>
+              <th>Current</th>
+              <th>Fault Type</th>
+              <th>Result</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="readings-body">
+            <tr>
+              <td colspan="9">Submit a reading to add the first row.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      const API_URL = "http://127.0.0.1:8000/predict";
+      const readings = [];
+      const form = document.getElementById("reading-form");
+      const clearButton = document.getElementById("clear-button");
+      const statusText = document.getElementById("status");
+      const tableBody = document.getElementById("readings-body");
+      const sensorSeries = [
+        {
+          key: "temperature_c",
+          label: "Temperature (C)",
+          color: "#2563eb",
+          canvasId: "temperature-chart",
+        },
+        {
+          key: "vibration_mm_s",
+          label: "Vibration (mm/s)",
+          color: "#16a34a",
+          canvasId: "vibration-chart",
+        },
+        {
+          key: "pressure_kpa",
+          label: "Pressure (kPa)",
+          color: "#7c3aed",
+          canvasId: "pressure-chart",
+        },
+        {
+          key: "current_a",
+          label: "Current (A)",
+          color: "#0891b2",
+          canvasId: "current-chart",
+        },
+      ];
+
+      const charts = sensorSeries.map((sensor) => {
+        const chartContext = document.getElementById(sensor.canvasId);
+
+        return new Chart(chartContext, {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: sensor.label,
+                data: [],
+                borderColor: sensor.color,
+                backgroundColor: sensor.color,
+                pointBackgroundColor: [],
+                pointBorderColor: [],
+                pointRadius: [],
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+              legend: {
+                display: true,
+              },
+            },
+            scales: {
+              x: {
+                ticks: {
+                  maxTicksLimit: 8,
+                },
+                title: {
+                  display: true,
+                  text: "Submission",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: sensor.label,
+                },
+              },
+            },
+          },
+        });
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const reading = {
+          timestamp: document.getElementById("timestamp").value,
+          temperature_c: Number(document.getElementById("temperature_c").value),
+          vibration_mm_s: Number(document.getElementById("vibration_mm_s").value),
+          pressure_kpa: Number(document.getElementById("pressure_kpa").value),
+          current_a: Number(document.getElementById("current_a").value),
+        };
+
+        statusText.textContent = "Calling API...";
+
+        try {
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(reading),
+          });
+
+          const prediction = await response.json();
+
+          if (!response.ok) {
+            statusText.textContent = `API error: HTTP ${response.status}`;
+            return;
+          }
+
+          readings.push({
+            ...reading,
+            prediction,
+          });
+
+          renderTable();
+          renderChart();
+          statusText.textContent = `Saved ${readings.length} reading(s).`;
+        } catch (error) {
+          statusText.textContent = `Request failed: ${error.message}`;
+        }
+      });
+
+      clearButton.addEventListener("click", () => {
+        readings.length = 0;
+        renderTable();
+        renderChart();
+        statusText.textContent = "Cleared all submitted readings.";
+      });
+
+      function renderTable() {
+        if (readings.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="9">Submit a reading to add the first row.</td></tr>';
+          return;
+        }
+
+        tableBody.innerHTML = readings
+          .map((reading, index) => {
+            const prediction = reading.prediction;
+            const resultClass = prediction.is_anomaly ? "anomaly" : "normal";
+            const resultText = prediction.is_anomaly ? "Anomaly" : "Normal";
+
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(reading.timestamp)}</td>
+                <td>${reading.temperature_c.toFixed(3)}</td>
+                <td>${reading.vibration_mm_s.toFixed(3)}</td>
+                <td>${reading.pressure_kpa.toFixed(3)}</td>
+                <td>${reading.current_a.toFixed(3)}</td>
+                <td>${escapeHtml(prediction.fault_type)}</td>
+                <td class="${resultClass}">${resultText}</td>
+                <td>${escapeHtml(prediction.reason)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderChart() {
+        sensorSeries.forEach((sensor, index) => {
+          const chart = charts[index];
+          const pointColors = readings.map((reading) =>
+            reading.prediction.is_anomaly ? "#dc2626" : sensor.color
+          );
+          const pointRadii = readings.map(() => 5);
+
+          chart.data.labels = readings.map((_, readingIndex) => String(readingIndex + 1));
+          chart.data.datasets[0].data = readings.map((reading) => reading[sensor.key]);
+          chart.data.datasets[0].pointBackgroundColor = pointColors;
+          chart.data.datasets[0].pointBorderColor = pointColors;
+          chart.data.datasets[0].pointRadius = pointRadii;
+          chart.update();
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </body>
+</html>

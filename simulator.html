@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IoT Pump Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        margin: 0;
+        background: #f5f7fb;
+        color: #1d2939;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(1240px, calc(100vw - 32px));
+        margin: 28px auto;
+      }
+
+      header,
+      section {
+        background: white;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        padding: 18px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+
+      p {
+        margin-top: 8px;
+        color: #667085;
+      }
+
+      .status-pill {
+        align-self: start;
+        background: #eef2f6;
+        border-radius: 999px;
+        color: #475467;
+        font-size: 14px;
+        padding: 8px 12px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      button,
+      select {
+        border-radius: 6px;
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 14px;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .primary {
+        background: #0f766e;
+        color: white;
+      }
+
+      .secondary {
+        background: #e2e8f0;
+        color: #1d2939;
+      }
+
+      select {
+        border: 1px solid #cbd5e1;
+        background: white;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 16px;
+      }
+
+      .chart-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .chart-wrap {
+        height: 170px;
+      }
+
+      .stats {
+        display: grid;
+        gap: 10px;
+      }
+
+      .stat {
+        background: #f8fafc;
+        border: 1px solid #e4e7ec;
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .stat span {
+        display: block;
+        color: #667085;
+        font-size: 12px;
+      }
+
+      .stat strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 22px;
+      }
+
+      .fault-counts {
+        margin-top: 32px;
+      }
+
+      .fault-counts h3 {
+        font-size: 15px;
+        margin: 0 0 10px;
+      }
+
+      .fault-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .fault-grid .stat {
+        min-height: 58px;
+        padding: 10px;
+      }
+
+      .fault-grid .stat strong {
+        font-size: 20px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #eaecf0;
+        padding: 9px;
+        text-align: left;
+      }
+
+      th {
+        background: #f2f4f7;
+        color: #344054;
+      }
+
+      .table-panel {
+        margin-top: 16px;
+      }
+
+      .normal {
+        color: #047857;
+        font-weight: 700;
+      }
+
+      .anomaly {
+        color: #b42318;
+        font-weight: 700;
+      }
+
+      @media (max-width: 980px) {
+        header,
+        .dashboard {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          display: block;
+        }
+
+        .status-pill {
+          display: inline-block;
+          margin-top: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>IoT Pump Simulator</h1>
+          <p>Generate fake pump readings, call /predict, and append each result to the charts.</p>
+        </div>
+        <div class="status-pill" id="status">Paused</div>
+      </header>
+
+      <section class="toolbar">
+        <button class="primary" id="start-button" type="button">Start</button>
+        <button class="secondary" id="pause-button" type="button">Pause</button>
+        <button class="secondary" id="generate-button" type="button">Generate One</button>
+        <button class="secondary" id="clear-button" type="button">Clear</button>
+        <label>
+          Speed
+          <select id="speed-select">
+            <option value="1000">1 second</option>
+            <option value="2000" selected>2 seconds</option>
+            <option value="5000">5 seconds</option>
+          </select>
+        </label>
+      </section>
+
+      <div class="dashboard">
+        <section>
+          <h2>Sensor Charts</h2>
+          <div class="chart-grid">
+            <div class="chart-wrap"><canvas id="temperature-chart"></canvas></div>
+            <div class="chart-wrap"><canvas id="vibration-chart"></canvas></div>
+            <div class="chart-wrap"><canvas id="pressure-chart"></canvas></div>
+            <div class="chart-wrap"><canvas id="current-chart"></canvas></div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <div class="stats">
+            <div class="stat">
+              <span>Total readings</span>
+              <strong id="total-readings">0</strong>
+            </div>
+            <div class="stat">
+              <span>Anomalies</span>
+              <strong id="total-anomalies">0</strong>
+            </div>
+            <div class="stat">
+              <span>Anomaly rate</span>
+              <strong id="anomaly-rate">0.00%</strong>
+            </div>
+            <div class="stat">
+              <span>Latest fault</span>
+              <strong id="latest-fault">-</strong>
+            </div>
+          </div>
+
+          <div class="fault-counts">
+            <h3>Predicted Fault Counts</h3>
+            <div class="fault-grid">
+              <div class="stat">
+                <span>Temperature spike</span>
+                <strong id="temperature-spike-count">0</strong>
+              </div>
+              <div class="stat">
+                <span>Vibration spike</span>
+                <strong id="vibration-spike-count">0</strong>
+              </div>
+              <div class="stat">
+                <span>Current spike</span>
+                <strong id="current-spike-count">0</strong>
+              </div>
+              <div class="stat">
+                <span>Pressure dropout</span>
+                <strong id="pressure-dropout-count">0</strong>
+              </div>
+              <div class="stat">
+                <span>Multiple</span>
+                <strong id="multiple-count">0</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="table-panel">
+        <h2>Latest Generated Readings</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Timestamp</th>
+              <th>Temp</th>
+              <th>Vibration</th>
+              <th>Pressure</th>
+              <th>Current</th>
+              <th>Result</th>
+              <th>Fault Type</th>
+            </tr>
+          </thead>
+          <tbody id="readings-body">
+            <tr>
+              <td colspan="8">No readings generated yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      const API_URL = "/predict";
+      const MAX_POINTS = 60;
+      const readings = [];
+      let timerId = null;
+
+      const faultCountElements = {
+        temperature_spike: document.getElementById("temperature-spike-count"),
+        vibration_spike: document.getElementById("vibration-spike-count"),
+        current_spike: document.getElementById("current-spike-count"),
+        pressure_dropout: document.getElementById("pressure-dropout-count"),
+        multiple: document.getElementById("multiple-count"),
+      };
+
+      const sensors = [
+        { key: "temperature_c", label: "Temperature (C)", color: "#2563eb", canvasId: "temperature-chart" },
+        { key: "vibration_mm_s", label: "Vibration (mm/s)", color: "#16a34a", canvasId: "vibration-chart" },
+        { key: "pressure_kpa", label: "Pressure (kPa)", color: "#7c3aed", canvasId: "pressure-chart" },
+        { key: "current_a", label: "Current (A)", color: "#0891b2", canvasId: "current-chart" },
+      ];
+
+      const charts = sensors.map((sensor) => {
+        return new Chart(document.getElementById(sensor.canvasId), {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: sensor.label,
+                data: [],
+                borderColor: sensor.color,
+                backgroundColor: sensor.color,
+                pointBackgroundColor: [],
+                pointBorderColor: [],
+                pointRadius: [],
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            scales: {
+              x: { ticks: { maxTicksLimit: 8 } },
+              y: { title: { display: true, text: sensor.label } },
+            },
+          },
+        });
+      });
+
+      document.getElementById("start-button").addEventListener("click", startSimulation);
+      document.getElementById("pause-button").addEventListener("click", pauseSimulation);
+      document.getElementById("generate-button").addEventListener("click", generateAndPredict);
+      document.getElementById("clear-button").addEventListener("click", clearReadings);
+
+      function startSimulation() {
+        pauseSimulation();
+        generateAndPredict();
+        timerId = setInterval(generateAndPredict, Number(document.getElementById("speed-select").value));
+        document.getElementById("status").textContent = "Running";
+      }
+
+      function pauseSimulation() {
+        if (timerId !== null) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+        document.getElementById("status").textContent = "Paused";
+      }
+
+      async function generateAndPredict() {
+        const reading = generatePumpReading();
+
+        try {
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reading),
+          });
+
+          const prediction = await response.json();
+
+          if (!response.ok) {
+            document.getElementById("status").textContent = `API error: HTTP ${response.status}`;
+            return;
+          }
+
+          readings.push({ ...reading, prediction });
+
+          if (readings.length > MAX_POINTS) {
+            readings.shift();
+          }
+
+          renderCharts();
+          renderTable();
+          renderStats();
+        } catch (error) {
+          document.getElementById("status").textContent = `Request failed: ${error.message}`;
+        }
+      }
+
+      function generatePumpReading() {
+        const reading = {
+          timestamp: new Date().toISOString().slice(0, 19),
+          temperature_c: randomNumber(20, 30),
+          vibration_mm_s: randomNumber(1.5, 4.5),
+          pressure_kpa: randomNumber(100.8, 101.8),
+          current_a: randomNumber(4.5, 7.5),
+        };
+
+        const anomalyRoll = Math.random();
+
+        if (anomalyRoll < 0.05) {
+          reading.temperature_c = randomNumber(34, 45);
+        } else if (anomalyRoll < 0.1) {
+          reading.vibration_mm_s = randomNumber(6, 12);
+        } else if (anomalyRoll < 0.15) {
+          reading.current_a = randomNumber(9, 14);
+        } else if (anomalyRoll < 0.2) {
+          reading.pressure_kpa = randomNumber(90, 97);
+        }
+
+        return reading;
+      }
+
+      function renderCharts() {
+        sensors.forEach((sensor, index) => {
+          const chart = charts[index];
+          const pointColors = readings.map((reading) =>
+            reading.prediction.is_anomaly ? "#dc2626" : sensor.color
+          );
+          const pointRadii = readings.map(() => 4);
+
+          chart.data.labels = readings.map((_, readingIndex) => String(readingIndex + 1));
+          chart.data.datasets[0].data = readings.map((reading) => reading[sensor.key]);
+          chart.data.datasets[0].pointBackgroundColor = pointColors;
+          chart.data.datasets[0].pointBorderColor = pointColors;
+          chart.data.datasets[0].pointRadius = pointRadii;
+          chart.update();
+        });
+      }
+
+      function renderTable() {
+        const rows = readings.slice(-12).reverse();
+        const tableBody = document.getElementById("readings-body");
+
+        if (rows.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="8">No readings generated yet.</td></tr>';
+          return;
+        }
+
+        tableBody.innerHTML = rows
+          .map((reading, index) => {
+            const resultClass = reading.prediction.is_anomaly ? "anomaly" : "normal";
+            const resultText = reading.prediction.is_anomaly ? "Anomaly" : "Normal";
+
+            return `
+              <tr>
+                <td>${readings.length - index}</td>
+                <td>${reading.timestamp}</td>
+                <td>${reading.temperature_c.toFixed(3)}</td>
+                <td>${reading.vibration_mm_s.toFixed(3)}</td>
+                <td>${reading.pressure_kpa.toFixed(3)}</td>
+                <td>${reading.current_a.toFixed(3)}</td>
+                <td class="${resultClass}">${resultText}</td>
+                <td>${reading.prediction.fault_type}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderStats() {
+        const anomalyCount = readings.filter((reading) => reading.prediction.is_anomaly).length;
+        const latest = readings[readings.length - 1];
+        const faultCounts = {
+          temperature_spike: 0,
+          vibration_spike: 0,
+          current_spike: 0,
+          pressure_dropout: 0,
+          multiple: 0,
+        };
+
+        readings.forEach((reading) => {
+          const faultType = reading.prediction.fault_type;
+
+          if (faultType in faultCounts) {
+            faultCounts[faultType] += 1;
+          }
+        });
+
+        document.getElementById("total-readings").textContent = String(readings.length);
+        document.getElementById("total-anomalies").textContent = String(anomalyCount);
+        document.getElementById("anomaly-rate").textContent =
+          readings.length === 0 ? "0.00%" : `${((anomalyCount / readings.length) * 100).toFixed(2)}%`;
+        document.getElementById("latest-fault").textContent = latest ? latest.prediction.fault_type : "-";
+
+        Object.entries(faultCountElements).forEach(([faultType, element]) => {
+          element.textContent = String(faultCounts[faultType]);
+        });
+      }
+
+      function clearReadings() {
+        readings.length = 0;
+        renderCharts();
+        renderTable();
+        renderStats();
+        document.getElementById("status").textContent = "Cleared";
+      }
+
+      function randomNumber(min, max) {
+        return Number((Math.random() * (max - min) + min).toFixed(3));
+      }
+    </script>
+  </body>
+</html>

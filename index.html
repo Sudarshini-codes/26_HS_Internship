@@ -1,0 +1,193 @@
+  <!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Rule-Based Anomaly Detector</title>
+      <style>
+        body {
+          margin: 0;
+          background: #f4f6f8;
+          color: #17202a;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+
+        main {
+          width: min(900px, calc(100vw - 32px));
+          margin: 32px auto;
+        }
+
+        header,
+        form,
+        section {
+          background: #ffffff;
+          border: 1px solid #d8e0e8;
+          border-radius: 8px;
+          padding: 20px;
+        }
+
+        header {
+          margin-bottom: 16px;
+        }
+
+        h1,
+        h2,
+        p {
+          margin: 0;
+        }
+
+        h1 {
+          font-size: 28px;
+        }
+
+        h2 {
+          font-size: 18px;
+          margin-bottom: 12px;
+        }
+
+        p {
+          color: #637083;
+          margin-top: 8px;
+        }
+
+        form {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        label {
+          display: grid;
+          gap: 6px;
+          color: #344054;
+          font-size: 14px;
+        }
+
+        input {
+          min-height: 38px;
+          border: 1px solid #cbd5df;
+          border-radius: 6px;
+          padding: 8px 10px;
+          font-size: 15px;
+        }
+
+        button {
+          grid-column: 1 / -1;
+          min-height: 42px;
+          border: 0;
+          border-radius: 6px;
+          background: #0f766e;
+          color: white;
+          font-size: 15px;
+          cursor: pointer;
+        }
+
+        button:hover {
+          background: #0b5f59;
+        }
+
+        section {
+          margin-top: 16px;
+        }
+
+        pre {
+          margin: 0;
+          white-space: pre-wrap;
+          word-break: break-word;
+          background: #101828;
+          color: #e5e7eb;
+          border-radius: 6px;
+          padding: 16px;
+          min-height: 120px;
+        }
+
+        @media (max-width: 700px) {
+          form {
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main>
+        <header>
+          <h1>Rule-Based Anomaly Detector</h1>
+          <p>Enter one sensor reading and submit it to the FastAPI /predict endpoint.</p>
+        </header>
+
+        <form id="reading-form">
+          <label>
+            API URL
+            <input id="api-url" type="url" value="http://127.0.0.1:8000/predict" />
+          </label>
+
+          <label>
+            Timestamp
+            <input id="timestamp" type="datetime-local" value="2025-07-30T09:20" />
+          </label>
+
+          <label>
+            Temperature (C)
+            <input id="temperature_c" type="number" step="0.001" value="24.3" />
+          </label>
+
+          <label>
+            Vibration (mm/s)
+            <input id="vibration_mm_s" type="number" step="0.001" value="2.41" />
+          </label>
+
+          <label>
+            Pressure (kPa)
+            <input id="pressure_kpa" type="number" step="0.001" value="101.28" />
+          </label>
+
+          <label>
+            Current (A)
+            <input id="current_a" type="number" step="0.001" value="5.92" />
+          </label>
+
+          <button type="submit">Submit</button>
+        </form>
+
+        <section>
+          <h2>API Response</h2>
+          <pre id="response-output">Submit a reading to see the API response.</pre>
+        </section>
+      </main>
+
+      <script>
+        const form = document.getElementById("reading-form");
+        const output = document.getElementById("response-output");
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const apiUrl = document.getElementById("api-url").value;
+          const reading = {
+            timestamp: document.getElementById("timestamp").value,
+            temperature_c: Number(document.getElementById("temperature_c").value),
+            vibration_mm_s: Number(document.getElementById("vibration_mm_s").value),
+            pressure_kpa: Number(document.getElementById("pressure_kpa").value),
+            current_a: Number(document.getElementById("current_a").value),
+          };
+
+          output.textContent = "Calling API...";
+
+          try {
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(reading),
+            });
+
+            const body = await response.json();
+            output.textContent = JSON.stringify({"Name": "Anomaly Detection Result", "Data": body}, null, 2);
+          } catch (error) {
+            output.textContent = `Request failed: ${error.message}`;
+          }
+        });
+      </script>
+    </body>
+  </html>

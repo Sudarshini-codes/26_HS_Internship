@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rule Based Anomaly Detector</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Rule Based Anomaly Detector</h1>
+    <p>Enter sensor data and submit to check for anomalies.</p>
+
+    <form id="anomaly-form">
+      <label for="timestamp">Timestamp</label>
+      <input id="timestamp" name="timestamp" type="datetime-local" required />
+
+      <label for="temperature">Temperature (°C)</label>
+      <input id="temperature" name="temperature" type="number" step="0.1" value="24.3" required />
+
+      <label for="vibration">Vibration (mm/s)</label>
+      <input id="vibration" name="vibration" type="number" step="0.01" value="2.41" required />
+
+      <label for="pressure">Pressure (kPa)</label>
+      <input id="pressure" name="pressure" type="number" step="0.01" value="101.28" required />
+
+      <label for="current">Current (A)</label>
+      <input id="current" name="current" type="number" step="0.01" value="5.92" required />
+
+      <button type="submit">Check Anomaly</button>
+    </form>
+
+    <section id="result" class="result hidden">
+      <h2>Prediction Result</h2>
+      <div class="result-row"><span>Is anomaly:</span><strong id="result-anomaly"></strong></div>
+      <div class="result-row"><span>Type:</span><strong id="result-type"></strong></div>
+      <div class="result-row"><span>Reason:</span><strong id="result-reason"></strong></div>
+    </section>
+
+    <section id="error" class="error hidden"></section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
