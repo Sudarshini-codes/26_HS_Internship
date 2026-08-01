@@ -1,16 +1,17 @@
-**Folder Structure**
+**Files**
 
-docs/
+docs:
   intern_project_2026.pdf
   
-data/
+data:
   sensor_data_2yr.csv
+  ui_demo_sensor_input_500.csv
 
-backend/
+backend:
   main.py
   RuleBasedDetector.py
 
-frontend/
+frontend:
   index.html
   ui.html
   compact.html
@@ -19,9 +20,10 @@ frontend/
 
 **Main Files**
 
-data/sensor_data_2yr.csv: full labeled training/evaluation dataset.
-backend/main.py: FastAPI app serving frontend pages and exposing /predict.
-frontend/index.html: simple form UI for calling /predict.
+sensor_data_2yr.csv: full labeled training/evaluation dataset.
+ui_demo_sensor_input_500.csv: small unlabeled CSV for the UI demo.
+main.py: FastAPI app serving frontend pages and exposing /predict.
+index.html: simple form UI for calling /predict.
 
 **Useful Commands**
 Install API dependencies:
