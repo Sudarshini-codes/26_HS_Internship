@@ -2,16 +2,13 @@
 
 docs/
   intern_project_2026.pdf
-  intern_workflow_brief.md
-  project_review_and_api_contract.md
-
+  
 data/
   sensor_data_2yr.csv
 
 backend/
   main.py
   RuleBasedDetector.py
-  visualize_sensor_data.py
 
 frontend/
   index.html
@@ -23,7 +20,6 @@ frontend/
 **Main Files**
 
 data/sensor_data_2yr.csv: full labeled training/evaluation dataset.
-data/ui_demo_sensor_input_500.csv: small unlabeled CSV for the UI demo.
 backend/main.py: FastAPI app serving frontend pages and exposing /predict.
 frontend/index.html: simple form UI for calling /predict.
 
